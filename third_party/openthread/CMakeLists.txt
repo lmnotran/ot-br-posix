@@ -69,11 +69,18 @@ if (OTBR_BACKBONE_ROUTER)
 endif()
 
 if (OT_THREAD_VERSION STREQUAL "1.2")
+    set(OT_DUA ON CACHE BOOL "Enable Thread 1.2 DUA by default")
     set(OT_MLR ON CACHE BOOL "Enable Thread 1.2 MLR by default")
 endif()
 
 set(OT_COAP ON CACHE BOOL "Enable CoAP in OpenThread")
 set(OT_COAPS ON CACHE BOOL "Enable secure CoAP in OpenThread")
+
+# SiLabs OpenThread Border Router only
+set(OT_DIAGNOSTIC ON CACHE BOOL "Enable diagnostics module" FORCE)
+set(OT_FULL_LOGS ON CACHE BOOL "Enable debug level logging" FORCE)
+set(OT_LOG_LEVEL "NONE" CACHE STRING "Set OpenThread log level to NONE by default" FORCE)
+set(OT_COPROCESSOR_RPC ON CACHE BOOL "Enable co-processor RPC support" FORCE)
 
 if (OTBR_DNSSD_DISCOVERY_PROXY)
     set(OT_DNSSD_SERVER ON CACHE BOOL "enable DNS-SD server support" FORCE)
@@ -83,7 +90,22 @@ if (NOT OT_POSIX_SETTINGS_PATH)
     set(OT_POSIX_SETTINGS_PATH "\"/var/lib/thread\"" CACHE STRING "set the directory to store Thread data" FORCE)
 endif()
 
+# Multi-PAN RCP support
+if (OT_MULTIPAN_RCP)
+    set(OT_RCP_RESTORATION_MAX_COUNT "100" CACHE STRING "set max RCP restoration count" FORCE)
+    set(OT_POSIX_MAX_POWER_TABLE OFF CACHE BOOL "enable max power table" FORCE)
+    set(OT_CHANNEL_MANAGER OFF CACHE BOOL "enable channel manager support" FORCE)
+    set(OT_CHANNEL_MONITOR OFF CACHE BOOL "enable channel monitor support" FORCE)
+    set(OT_THREAD_VERSION 1.1 CACHE STRING "" FORCE)
+endif()
+
 add_subdirectory(repo EXCLUDE_FROM_ALL)
+if (OT_COPROCESSOR_RPC)
+    # NOTE: The following must be true otherwise prints on the POSIX Host will be truncated.
+    #    OPENTHREAD_CONFIG_CLI_MAX_LINE_LENGTH >= OPENTHREAD_CONFIG_COPROCESSOR_RPC_OUTPUT_BUFFER_SIZE
+    target_compile_definitions(ot-config INTERFACE "OPENTHREAD_CONFIG_CLI_MAX_LINE_LENGTH=1200")
+    target_compile_definitions(ot-config INTERFACE "OPENTHREAD_CONFIG_COPROCESSOR_RPC_OUTPUT_BUFFER_SIZE=1200")
+endif()
 
 target_compile_definitions(ot-config INTERFACE
     "-DOPENTHREAD_CONFIG_LOG_CLI=1"
@@ -91,3 +113,18 @@ target_compile_definitions(ot-config INTERFACE
     "-DOPENTHREAD_CONFIG_MLE_STEERING_DATA_SET_OOB_ENABLE=1"
     "-DOPENTHREAD_CONFIG_TMF_PROXY_DUA_ENABLE=$<BOOL:${OTBR_DUA_ROUTING}>"
 )
+
+# SubGhz support
+if (OTBR_PROPRIETARY_RADIO_SUPPORT)
+    target_compile_definitions(ot-config INTERFACE
+        "-DOPENTHREAD_CONFIG_LOG_PLATFORM=1"
+        "-DOPENTHREAD_CONFIG_PLATFORM_RADIO_PROPRIETARY_SUPPORT=1"
+        "-DOPENTHREAD_CONFIG_RADIO_2P4GHZ_OQPSK_SUPPORT=0"
+        "-DOPENTHREAD_CONFIG_RADIO_915MHZ_OQPSK_SUPPORT=0"
+        "-DOPENTHREAD_CONFIG_PLATFORM_RADIO_PROPRIETARY_CHANNEL_PAGE=23"
+        "-DOPENTHREAD_CONFIG_PLATFORM_RADIO_PROPRIETARY_CHANNEL_MIN=0"
+        "-DOPENTHREAD_CONFIG_PLATFORM_RADIO_PROPRIETARY_CHANNEL_MAX=24"
+        "-DOPENTHREAD_CONFIG_DEFAULT_CHANNEL=OPENTHREAD_CONFIG_PLATFORM_RADIO_PROPRIETARY_CHANNEL_MIN"
+        "-DOPENTHREAD_CONFIG_PLATFORM_RADIO_PROPRIETARY_CHANNEL_MASK=0x1ffffff"
+    )
+endif()
