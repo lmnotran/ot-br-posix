@@ -28,6 +28,7 @@
 
 cmake_minimum_required(VERSION 3.10.2)
 project(openthread-br VERSION 0.3.0)
+set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "default build type: Debug" FORCE)
 
 
 add_library(otbr-config INTERFACE)
